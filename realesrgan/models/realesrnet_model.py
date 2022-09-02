@@ -1,14 +1,15 @@
 import numpy as np
 import random
-import torch
+# import torch
+import paddle
 from basicsr.data.degradations import random_add_gaussian_noise_pt, random_add_poisson_noise_pt
 from basicsr.data.transforms import paired_random_crop
 from basicsr.models.sr_model import SRModel
 from basicsr.utils import DiffJPEG, USMSharp
 from basicsr.utils.img_process_util import filter2D
 from basicsr.utils.registry import MODEL_REGISTRY
-from torch.nn import functional as F
-
+# from torch.nn import functional as F
+from paddle.nn import functional as F
 
 @MODEL_REGISTRY.register()
 class RealESRNetModel(SRModel):
@@ -26,7 +27,8 @@ class RealESRNetModel(SRModel):
         self.usm_sharpener = USMSharp().cuda()  # do usm sharpening
         self.queue_size = opt.get('queue_size', 180)
 
-    @torch.no_grad()
+    # @torch.no_grad()
+    @paddle.no_grad()
     def _dequeue_and_enqueue(self):
         """It is the training pair pool for increasing the diversity in a batch.
 
@@ -38,14 +40,17 @@ class RealESRNetModel(SRModel):
         b, c, h, w = self.lq.size()
         if not hasattr(self, 'queue_lr'):
             assert self.queue_size % b == 0, f'queue size {self.queue_size} should be divisible by batch size {b}'
-            self.queue_lr = torch.zeros(self.queue_size, c, h, w).cuda()
+            # self.queue_lr = torch.zeros(self.queue_size, c, h, w).cuda()
+            self.queue_lr = paddle.zeros([self.queue_size, c, h, w]).cuda()
             _, c, h, w = self.gt.size()
-            self.queue_gt = torch.zeros(self.queue_size, c, h, w).cuda()
+            # self.queue_gt = torch.zeros(self.queue_size, c, h, w).cuda()
+            self.queue_gt = paddle.zeros([self.queue_size, c, h, w]).cuda()
             self.queue_ptr = 0
         if self.queue_ptr == self.queue_size:  # the pool is full
             # do dequeue and enqueue
             # shuffle
-            idx = torch.randperm(self.queue_size)
+            # idx = torch.randperm(self.queue_size)
+            idx = paddle.randperm(self.queue_size)
             self.queue_lr = self.queue_lr[idx]
             self.queue_gt = self.queue_gt[idx]
             # get first b samples
@@ -63,7 +68,8 @@ class RealESRNetModel(SRModel):
             self.queue_gt[self.queue_ptr:self.queue_ptr + b, :, :, :] = self.gt.clone()
             self.queue_ptr = self.queue_ptr + b
 
-    @torch.no_grad()
+    # @torch.no_grad()
+    @paddle.no_grad()
     def feed_data(self, data):
         """Accept data from dataloader, and then add two-order degradations to obtain LQ images.
         """
@@ -107,7 +113,8 @@ class RealESRNetModel(SRModel):
                     rounds=False)
             # JPEG compression
             jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range'])
-            out = torch.clamp(out, 0, 1)  # clamp to [0, 1], otherwise JPEGer will result in unpleasant artifacts
+            # out = torch.clamp(out, 0, 1)  # clamp to [0, 1], otherwise JPEGer will result in unpleasant artifacts
+            out = paddle.clip(out, 0, 1)  # clamp to [0, 1], otherwise JPEGer will result in unpleasant artifacts
             out = self.jpeger(out, quality=jpeg_p)
 
             # ----------------------- The second degradation process ----------------------- #
@@ -152,12 +159,14 @@ class RealESRNetModel(SRModel):
                 out = filter2D(out, self.sinc_kernel)
                 # JPEG compression
                 jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
-                out = torch.clamp(out, 0, 1)
+                # out = torch.clamp(out, 0, 1)
+                out = paddle.clip(out, 0, 1)
                 out = self.jpeger(out, quality=jpeg_p)
             else:
                 # JPEG compression
                 jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
-                out = torch.clamp(out, 0, 1)
+                # out = torch.clamp(out, 0, 1)
+                out = paddle.clip(out, 0, 1)
                 out = self.jpeger(out, quality=jpeg_p)
                 # resize back + the final sinc filter
                 mode = random.choice(['area', 'bilinear', 'bicubic'])
@@ -165,7 +174,8 @@ class RealESRNetModel(SRModel):
                 out = filter2D(out, self.sinc_kernel)
 
             # clamp and round
-            self.lq = torch.clamp((out * 255.0).round(), 0, 255) / 255.
+            # self.lq = torch.clamp((out * 255.0).round(), 0, 255) / 255.
+            self.lq = paddle.clip((out * 255.0).round(), 0, 255) / 255.
 
             # random crop
             gt_size = self.opt['gt_size']

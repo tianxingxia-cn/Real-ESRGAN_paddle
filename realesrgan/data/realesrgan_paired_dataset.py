@@ -4,11 +4,13 @@ from basicsr.data.transforms import augment, paired_random_crop
 from basicsr.utils import FileClient, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
 from torch.utils import data as data
-from torchvision.transforms.functional import normalize
-
+from paddle.io import Dataset
+# from torchvision.transforms.functional import normalize
+from paddle.vision.transforms import normalize
 
 @DATASET_REGISTRY.register()
-class RealESRGANPairedDataset(data.Dataset):
+# class RealESRGANPairedDataset(data.Dataset):
+class RealESRGANPairedDataset(Dataset):
     """Paired image dataset for image restoration.
 
     Read LQ (Low Quality, e.g. LR (Low Resolution), blurry, noisy, etc) and GT image pairs.
@@ -99,8 +101,10 @@ class RealESRGANPairedDataset(data.Dataset):
         img_gt, img_lq = img2tensor([img_gt, img_lq], bgr2rgb=True, float32=True)
         # normalize
         if self.mean is not None or self.std is not None:
-            normalize(img_lq, self.mean, self.std, inplace=True)
-            normalize(img_gt, self.mean, self.std, inplace=True)
+            # normalize(img_lq, self.mean, self.std, inplace=True)
+            # normalize(img_gt, self.mean, self.std, inplace=True)
+            normalize(img_lq, self.mean, self.std, data_format='CHW', to_rgb='RGB')
+            normalize(img_gt, self.mean, self.std, data_format='CHW', to_rgb='RGB')
 
         return {'lq': img_lq, 'gt': img_gt, 'lq_path': lq_path, 'gt_path': gt_path}
 

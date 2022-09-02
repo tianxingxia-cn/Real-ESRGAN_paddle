@@ -6,7 +6,8 @@ import numpy as np
 import os
 import shutil
 import subprocess
-import torch
+# import torch
+import paddle
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from os import path as osp
 from tqdm import tqdm
@@ -14,6 +15,7 @@ from tqdm import tqdm
 from realesrgan import RealESRGANer
 from realesrgan.archs.srvgg_arch import SRVGGNetCompact
 
+import multiprocessing # 支持 多进程
 try:
     import ffmpeg
 except ImportError:
@@ -245,7 +247,8 @@ def inference_video(args, video_save_path, device=None, total_workers=1, worker_
         else:
             writer.write_frame(output)
 
-        torch.cuda.synchronize(device)
+        # torch.cuda.synchronize(device)
+        paddle.device.cuda.synchronize(device)
         pbar.update(1)
 
     reader.close()
@@ -262,13 +265,17 @@ def run(args):
         os.system(f'ffmpeg -i {args.input} -qscale:v 1 -qmin 1 -qmax 1 -vsync 0  {tmp_frames_folder}/frame%08d.png')
         args.input = tmp_frames_folder
 
-    num_gpus = torch.cuda.device_count()
+    # num_gpus = torch.cuda.device_count()
+    num_gpus = paddle.device.cuda.device_count()
+    if num_gpus ==0:    #only cpu
+        num_gpus =1
     num_process = num_gpus * args.num_process_per_gpu
     if num_process == 1:
         inference_video(args, video_save_path)
         return
 
-    ctx = torch.multiprocessing.get_context('spawn')
+    # ctx = torch.multiprocessing.get_context('spawn')
+    ctx = multiprocessing.get_context('spawn')
     pool = ctx.Pool(num_process)
     os.makedirs(osp.join(args.output, f'{args.video_name}_out_tmp_videos'), exist_ok=True)
     pbar = tqdm(total=num_process, unit='sub_video', desc='inference')
@@ -276,7 +283,8 @@ def run(args):
         sub_video_save_path = osp.join(args.output, f'{args.video_name}_out_tmp_videos', f'{i:03d}.mp4')
         pool.apply_async(
             inference_video,
-            args=(args, sub_video_save_path, torch.device(i % num_gpus), num_process, i),
+            # args=(args, sub_video_save_path, torch.device(i % num_gpus), num_process, i),
+            args=(args, sub_video_save_path, paddle.set_device(str(i % num_gpus)), num_process, i),
             callback=lambda arg: pbar.update(1))
     pool.close()
     pool.join()

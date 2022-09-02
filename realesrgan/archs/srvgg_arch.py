@@ -1,10 +1,13 @@
 from basicsr.utils.registry import ARCH_REGISTRY
-from torch import nn as nn
-from torch.nn import functional as F
+# from torch import nn as nn
+# from torch.nn import functional as F
+from paddle import nn as nn
+from paddle.nn import functional as F
 
 
 @ARCH_REGISTRY.register()
-class SRVGGNetCompact(nn.Module):
+# class SRVGGNetCompact(nn.Module):
+class SRVGGNetCompact(nn.Layer):
     """A compact VGG-style network structure for super-resolution.
 
     It is a compact network structure, which performs upsampling in the last layer and no convolution is
@@ -28,32 +31,40 @@ class SRVGGNetCompact(nn.Module):
         self.upscale = upscale
         self.act_type = act_type
 
-        self.body = nn.ModuleList()
+        # self.body = nn.ModuleList()
+        self.body = nn.LayerList()
         # the first conv
-        self.body.append(nn.Conv2d(num_in_ch, num_feat, 3, 1, 1))
+        # self.body.append(nn.Conv2d(num_in_ch, num_feat, 3, 1, 1))
+        self.body.append(nn.Conv2D(num_in_ch, num_feat, 3, 1, 1))
         # the first activation
         if act_type == 'relu':
-            activation = nn.ReLU(inplace=True)
+            # activation = nn.ReLU(inplace=True)
+            activation = nn.ReLU()
         elif act_type == 'prelu':
             activation = nn.PReLU(num_parameters=num_feat)
         elif act_type == 'leakyrelu':
-            activation = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+            # activation = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+            activation = nn.LeakyReLU(negative_slope=0.1)
         self.body.append(activation)
 
         # the body structure
         for _ in range(num_conv):
-            self.body.append(nn.Conv2d(num_feat, num_feat, 3, 1, 1))
+            # self.body.append(nn.Conv2d(num_feat, num_feat, 3, 1, 1))
+            self.body.append(nn.Conv2D(num_feat, num_feat, 3, 1, 1))
             # activation
             if act_type == 'relu':
-                activation = nn.ReLU(inplace=True)
+                # activation = nn.ReLU(inplace=True)
+                activation = nn.ReLU()
             elif act_type == 'prelu':
                 activation = nn.PReLU(num_parameters=num_feat)
             elif act_type == 'leakyrelu':
-                activation = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+                # activation = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+                activation = nn.LeakyReLU(negative_slope=0.1)
             self.body.append(activation)
 
         # the last conv
-        self.body.append(nn.Conv2d(num_feat, num_out_ch * upscale * upscale, 3, 1, 1))
+        # self.body.append(nn.Conv2d(num_feat, num_out_ch * upscale * upscale, 3, 1, 1))
+        self.body.append(nn.Conv2D(num_feat, num_out_ch * upscale * upscale, 3, 1, 1))
         # upsample
         self.upsampler = nn.PixelShuffle(upscale)
 

@@ -5,16 +5,19 @@ import os
 import os.path as osp
 import random
 import time
-import torch
+# import torch
+import paddle
 from basicsr.data.degradations import circular_lowpass_kernel, random_mixed_kernels
 from basicsr.data.transforms import augment
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from torch.utils import data as data
+# from torch.utils import data as data
+from paddle.io import Dataset
 
 
 @DATASET_REGISTRY.register()
-class RealESRGANDataset(data.Dataset):
+# class RealESRGANDataset(data.Dataset):
+class RealESRGANDataset(Dataset):
     """Dataset used for Real-ESRGAN model:
     Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data.
 
@@ -77,7 +80,8 @@ class RealESRGANDataset(data.Dataset):
 
         self.kernel_range = [2 * v + 1 for v in range(3, 11)]  # kernel size ranges from 7 to 21
         # TODO: kernel range is now hard-coded, should be in the configure file
-        self.pulse_tensor = torch.zeros(21, 21).float()  # convolving with pulse tensor brings no blurry effect
+        # self.pulse_tensor = torch.zeros(21, 21).float()  # convolving with pulse tensor brings no blurry effect
+        self.pulse_tensor = paddle.zeros([21, 21],dtype='float32')     # convolving with pulse tensor brings no blurry effect
         self.pulse_tensor[10, 10] = 1
 
     def __getitem__(self, index):
@@ -176,14 +180,17 @@ class RealESRGANDataset(data.Dataset):
             kernel_size = random.choice(self.kernel_range)
             omega_c = np.random.uniform(np.pi / 3, np.pi)
             sinc_kernel = circular_lowpass_kernel(omega_c, kernel_size, pad_to=21)
-            sinc_kernel = torch.FloatTensor(sinc_kernel)
+            # sinc_kernel = torch.FloatTensor(sinc_kernel)
+            sinc_kernel = paddle.to_tensor(sinc_kernel, dtype='float32')
         else:
             sinc_kernel = self.pulse_tensor
 
         # BGR to RGB, HWC to CHW, numpy to tensor
         img_gt = img2tensor([img_gt], bgr2rgb=True, float32=True)[0]
-        kernel = torch.FloatTensor(kernel)
-        kernel2 = torch.FloatTensor(kernel2)
+        # kernel = torch.FloatTensor(kernel)
+        # kernel2 = torch.FloatTensor(kernel2)
+        kernel = paddle.to_tensor(kernel, dtype='float32')
+        kernel2 = paddle.to_tensor(kernel2, dtype='float32')
 
         return_d = {'gt': img_gt, 'kernel1': kernel, 'kernel2': kernel2, 'sinc_kernel': sinc_kernel, 'gt_path': gt_path}
         return return_d

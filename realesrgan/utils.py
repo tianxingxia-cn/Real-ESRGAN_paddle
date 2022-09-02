@@ -4,9 +4,11 @@ import numpy as np
 import os
 import queue
 import threading
-import torch
+# import torch
+import paddle
 from basicsr.utils.download_util import load_file_from_url
-from torch.nn import functional as F
+# from torch.nn import functional as F
+from paddle.nn import functional as F
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -45,33 +47,45 @@ class RealESRGANer():
 
         # initialize model
         if gpu_id:
-            self.device = torch.device(
-                f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu') if device is None else device
+            # self.device = torch.device(
+            #     f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu') if device is None else device
+            self.device = paddle.device.set_device(
+                f'cuda:{gpu_id}' if paddle.device.get_available_device() else 'cpu') if device is None else device
         else:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
+            # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
+            self.device = paddle.device.set_device('cuda' if paddle.device.get_available_device() else 'cpu') if device is None else device
         # if the model_path starts with https, it will first download models to the folder: realesrgan/weights
         if model_path.startswith('https://'):
             model_path = load_file_from_url(
                 url=model_path, model_dir=os.path.join(ROOT_DIR, 'realesrgan/weights'), progress=True, file_name=None)
-        loadnet = torch.load(model_path, map_location=torch.device('cpu'))
+        # loadnet = torch.load(model_path, map_location=torch.device('cpu'))
+        paddle.device.set_device('cpu')
+        loadnet = paddle.load(model_path)
         # prefer to use params_ema
         if 'params_ema' in loadnet:
             keyname = 'params_ema'
         else:
             keyname = 'params'
-        model.load_state_dict(loadnet[keyname], strict=True)
+        # model.load_state_dict(loadnet[keyname], strict=True)
+        model.set_state_dict(loadnet[keyname], strict=True)
         model.eval()
-        self.model = model.to(self.device)
+        # self.model = model.to(self.device)
+        self.model = model
         if self.half:
-            self.model = self.model.half()
+            # self.model = self.model.half()
+            self.model = self.model.float()  # for cpu
 
     def pre_process(self, img):
         """Pre-process, such as pre-pad and mod pad, so that the images can be divisible
         """
-        img = torch.from_numpy(np.transpose(img, (2, 0, 1))).float()
-        self.img = img.unsqueeze(0).to(self.device)
+        # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).float()
+        img = paddle.to_tensor(np.transpose(img, (2, 0, 1))).astype(np.float32)
+
+        # self.img = img.unsqueeze(0).to(self.device)
+        self.img = img.unsqueeze(0)
         if self.half:
-            self.img = self.img.half()
+            # self.img = self.img.half()
+            self.img = self.img.float()  # for cpu
 
         # pre_pad
         if self.pre_pad != 0:
@@ -136,7 +150,8 @@ class RealESRGANer():
 
                 # upscale tile
                 try:
-                    with torch.no_grad():
+                    # with torch.no_grad():
+                    with paddle.no_grad():
                         output_tile = self.model(input_tile)
                 except RuntimeError as error:
                     print('Error', error)
@@ -170,7 +185,8 @@ class RealESRGANer():
             self.output = self.output[:, :, 0:h - self.pre_pad * self.scale, 0:w - self.pre_pad * self.scale]
         return self.output
 
-    @torch.no_grad()
+    # @torch.no_grad()
+    @paddle.no_grad()
     def enhance(self, img, outscale=None, alpha_upsampler='realesrgan'):
         h_input, w_input = img.shape[0:2]
         # img: numpy
