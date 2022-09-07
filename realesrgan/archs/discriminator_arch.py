@@ -1,4 +1,4 @@
-from basicsr.utils.registry import ARCH_REGISTRY
+# from basicsr.utils.registry import ARCH_REGISTRY
 # from torch import nn as nn
 # from torch.nn import functional as F
 # from torch.nn.utils import spectral_norm
@@ -6,9 +6,12 @@ from paddle import nn as nn
 from paddle.nn import functional as F
 from paddle.nn.utils import spectral_norm
 
+from .builder import GENERATORS
 
-@ARCH_REGISTRY.register()
+
+# @ARCH_REGISTRY.register()
 # class UNetDiscriminatorSN(nn.Module):
+GENERATORS.register()
 class UNetDiscriminatorSN(nn.Layer):
     """Defines a U-Net discriminator with spectral normalization (SN)
 

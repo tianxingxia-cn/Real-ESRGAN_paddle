@@ -4,8 +4,10 @@ from basicsr.utils.registry import ARCH_REGISTRY
 from paddle import nn as nn
 from paddle.nn import functional as F
 
+from .builder import GENERATORS
 
-@ARCH_REGISTRY.register()
+# @ARCH_REGISTRY.register()
+@GENERATORS.register()
 # class SRVGGNetCompact(nn.Module):
 class SRVGGNetCompact(nn.Layer):
     """A compact VGG-style network structure for super-resolution.
