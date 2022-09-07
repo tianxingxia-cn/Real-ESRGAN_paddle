@@ -183,7 +183,7 @@ class RealESRNetModel(SRModel):
 
             # training pair pool
             self._dequeue_and_enqueue()
-            self.lq = self.lq.contiguous()  # for the warning: grad and param do not obey the gradient layout contract
+            # self.lq = self.lq.contiguous()  # for the warning: grad and param do not obey the gradient layout contract
         else:
             # for paired training or validation
             self.lq = data['lq'].to(self.device)

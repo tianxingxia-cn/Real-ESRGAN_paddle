@@ -284,7 +284,7 @@ def run(args):
         pool.apply_async(
             inference_video,
             # args=(args, sub_video_save_path, torch.device(i % num_gpus), num_process, i),
-            args=(args, sub_video_save_path, paddle.set_device(str(i % num_gpus)), num_process, i),
+            args=(args, sub_video_save_path, paddle.device.set_device('cpu'), num_process, i),
             callback=lambda arg: pbar.update(1))
     pool.close()
     pool.join()

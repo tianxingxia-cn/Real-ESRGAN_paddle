@@ -185,7 +185,7 @@ class RealESRGANModel(SRGANModel):
             self._dequeue_and_enqueue()
             # sharpen self.gt again, as we have changed the self.gt with self._dequeue_and_enqueue
             self.gt_usm = self.usm_sharpener(self.gt)
-            self.lq = self.lq.contiguous()  # for the warning: grad and param do not obey the gradient layout contract
+            # self.lq = self.lq.contiguous()  # for the warning: grad and param do not obey the gradient layout contract
         else:
             # for paired training or validation
             self.lq = data['lq'].to(self.device)
@@ -215,7 +215,8 @@ class RealESRGANModel(SRGANModel):
         for p in self.net_d.parameters():
             p.requires_grad = False
 
-        self.optimizer_g.zero_grad()
+        # self.optimizer_g.zero_grad()
+        self.optimizer_g.clear_grad()
         self.output = self.net_g(self.lq)
 
         l_g_total = 0
@@ -248,7 +249,8 @@ class RealESRGANModel(SRGANModel):
         for p in self.net_d.parameters():
             p.requires_grad = True
 
-        self.optimizer_d.zero_grad()
+        # self.optimizer_d.zero_grad()
+        self.optimizer_d.clear_grad()
         # real
         real_d_pred = self.net_d(gan_gt)
         l_d_real = self.cri_gan(real_d_pred, True, is_disc=True)

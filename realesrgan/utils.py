@@ -6,7 +6,7 @@ import queue
 import threading
 # import torch
 import paddle
-from basicsr.utils.download_util import load_file_from_url
+# from basicsr.utils.download_util import load_file_from_url
 # from torch.nn import functional as F
 from paddle.nn import functional as F
 
@@ -59,21 +59,24 @@ class RealESRGANer():
             model_path = load_file_from_url(
                 url=model_path, model_dir=os.path.join(ROOT_DIR, 'realesrgan/weights'), progress=True, file_name=None)
         # loadnet = torch.load(model_path, map_location=torch.device('cpu'))
-        paddle.device.set_device('cpu')
+        # paddle.device.set_device('cpu')
         loadnet = paddle.load(model_path)
+
         # prefer to use params_ema
         if 'params_ema' in loadnet:
             keyname = 'params_ema'
         else:
             keyname = 'params'
+
         # model.load_state_dict(loadnet[keyname], strict=True)
-        model.set_state_dict(loadnet[keyname], strict=True)
+        model.set_state_dict(loadnet[keyname])
         model.eval()
         # self.model = model.to(self.device)
         self.model = model
         if self.half:
             # self.model = self.model.half()
-            self.model = self.model.float()  # for cpu
+            # self.model = self.model.float()  # for cpu
+            pass #todo
 
     def pre_process(self, img):
         """Pre-process, such as pre-pad and mod pad, so that the images can be divisible
@@ -85,7 +88,8 @@ class RealESRGANer():
         self.img = img.unsqueeze(0)
         if self.half:
             # self.img = self.img.half()
-            self.img = self.img.float()  # for cpu
+            # self.img = self.img.float()  # for cpu
+            pass # todo
 
         # pre_pad
         if self.pre_pad != 0:
@@ -218,7 +222,8 @@ class RealESRGANer():
         else:
             self.process()
         output_img = self.post_process()
-        output_img = output_img.data.squeeze().float().cpu().clamp_(0, 1).numpy()
+        # output_img = output_img.data.squeeze().float().cpu().clamp_(0, 1).numpy()
+        output_img = output_img.squeeze().clip(0, 1).numpy()
         output_img = np.transpose(output_img[[2, 1, 0], :, :], (1, 2, 0))
         if img_mode == 'L':
             output_img = cv2.cvtColor(output_img, cv2.COLOR_BGR2GRAY)
@@ -232,7 +237,8 @@ class RealESRGANer():
                 else:
                     self.process()
                 output_alpha = self.post_process()
-                output_alpha = output_alpha.data.squeeze().float().cpu().clamp_(0, 1).numpy()
+                # output_alpha = output_alpha.data.squeeze().float().cpu().clamp_(0, 1).numpy()
+                output_alpha = output_alpha.squeeze().clip(0, 1).numpy()
                 output_alpha = np.transpose(output_alpha[[2, 1, 0], :, :], (1, 2, 0))
                 output_alpha = cv2.cvtColor(output_alpha, cv2.COLOR_BGR2GRAY)
             else:  # use the cv2 resize for alpha channel
@@ -307,3 +313,6 @@ class IOConsumer(threading.Thread):
             save_path = msg['save_path']
             cv2.imwrite(save_path, output)
         print(f'IO worker {self.qid} is done.')
+
+
+
